@@ -2,9 +2,10 @@ library(tidyverse)
 library(ggplot2)
 library(plotly)
 library(fmsb)
-yak <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/clean_yakker23.csv") %>%
-  mutate(Batter = gsub("Ti'q", "Ti'Q", Batter))
+# pitch data
+yak <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/clean_yakker23.csv") 
 # ---------------- FRONTIER HITTERS  ------------
+# Season Stats
 h <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/frontier_all_hitters23.csv") %>%
   filter(!NAME %in% c('TOTALS', 'Team Totals', 'Opponents'),
          !grepl('Tie-breaker',NAME))%>%
@@ -13,7 +14,8 @@ h <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/frontier_all_hitters23.csv"
          `wRC+` = 'wRC.') %>% 
   select(NAME, TEAM, AVG, OBP, SLG, `BB%`, `K%`, `wRC+`, wOBA) 
 
-# ---- YT DATA ----
+# ---- Yakkertech DATA ----
+# create rate stats
 h_yak <- yak %>%
   group_by(Batter) %>%
   summarise(`Avg. Exit Velo` = round(mean(ExitSpeed[PitchCall=='InPlay'], na.rm = TRUE),1),
@@ -23,16 +25,18 @@ h_yak <- yak %>%
             `Chase %` = round((sum(swing, na.rm = T) / sum(in_zone==0,na.rm = T))*100,1)
             
   )
-
+# join normal stats and yakkertech stats
 h_full <- h %>% left_join(h_yak, by = c('NAME' = 'Batter'))
 
 stats_columns <- c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
 
+# pivot 
 h_full_pivot <- h_full %>%
   pivot_longer(cols = starts_with(c(stats_columns)),
                names_to = "Stat",
                values_to = "Value")
 
+# create percentiles DF
 h_percentiles <- h_full %>%
   mutate(across(all_of(stats_columns), ~rank(., ties.method = "min") / n() * 100),
          across(all_of(stats_columns), ~ round(.)))  %>%
@@ -143,11 +147,11 @@ ggplotly(
     geom_point(aes(x = 100, y = Stat), size = 2.5, alpha = 1, stroke = 0.5, color = 'grey') +
     geom_point(data = pitcher, 
                aes(Percentile, Stat, fill = Percentile), 
-               size = 7, alpha = 1, shape = 21, stroke = 1) +
+               size = 8, alpha = 1, shape = 21, stroke = 1) +
     scale_fill_gradient2(midpoint = 50, low = "#3a64af", mid = "lightgrey", high = "#d82129") +
     xlim(-10,110) +
     ggtitle("Frontier League Pitcher Percentile Rankings")+
-    geom_text(aes(x = Percentile, y = Stat, label = Percentile), size = 3, fontface = 'bold',  
+    geom_text(aes(x = Percentile, y = Stat, label = Percentile), size = 4, fontface = 'bold',  
               color = ifelse(pitcher$Percentile > 25 & pitcher$Percentile < 75, "black", "white")) +
     facet_wrap(~ interaction(y = Stat), scales='free_y', ncol = 4) +
     theme(plot.title = element_text(hjust = .5),
