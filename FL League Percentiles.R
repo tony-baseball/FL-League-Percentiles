@@ -10,8 +10,8 @@ h <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/frontier_all_hitters23.csv"
          !grepl('Tie-breaker',NAME))%>%
   rename(`BB%` = 'BB.',
          `K%` = 'K.',
-         `wRC+` = 'wRC.')
-h_ <- h %>% select(NAME, TEAM, AVG, OBP, SLG, `BB%`, `K%`, `wRC+`, wOBA) 
+         `wRC+` = 'wRC.') %>% 
+  select(NAME, TEAM, AVG, OBP, SLG, `BB%`, `K%`, `wRC+`, wOBA) 
 
 # ---- YT DATA ----
 h_yak <- yak %>%
@@ -24,7 +24,7 @@ h_yak <- yak %>%
             
   )
 
-h_full <- h_ %>% left_join(h_yak, by = c('NAME' = 'Batter'))
+h_full <- h %>% left_join(h_yak, by = c('NAME' = 'Batter'))
 
 stats_columns <- c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
 
@@ -88,9 +88,8 @@ p <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/frontier_all_pitchers23.csv
          !grepl('Tie-breaker',NAME))%>%
   rename(`BB%` = 'BB.',
          `K%` = 'K.',
-         `FIP-` = 'FIP.')
-
-p_ <- p %>% select(NAME, TEAM, ERA, `FIP`, vwOBA,vSLG,  `BB%`, `K%`) %>%
+         `FIP-` = 'FIP.') %>% 
+  select(NAME, TEAM, ERA, `FIP`, vwOBA,vSLG,  `BB%`, `K%`) %>%
   mutate(`BB%` = `BB%`*100,
          `K%` = `K%`*100)
 
@@ -106,7 +105,7 @@ p_yak <- yak %>%
             
   )
 
-p_full <- p_ %>% left_join(p_yak, by = c('NAME' = 'Pitcher')) 
+p_full <- p %>% left_join(p_yak, by = c('NAME' = 'Pitcher')) 
 
 p_stats_columns <- c("ERA", "FIP", "vwOBA", "BB%", "K%", "Fastball Velo","Fastball Spin",  "vSLG",
                      "Avg. Exit Velo",  "Hard Hit%", "Whiff %", "Chase %")
