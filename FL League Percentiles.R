@@ -26,20 +26,17 @@ h_yak <- yak %>%
 
 h_full <- h_ %>% left_join(h_yak, by = c('NAME' = 'Batter'))
 
+stats_columns <- c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
 
 h_full_pivot <- h_full %>%
-  pivot_longer(cols = starts_with(c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA",
-                                    "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")),
+  pivot_longer(cols = starts_with(c(stats_columns)),
                names_to = "Stat",
                values_to = "Value")
-
-stats_columns <- c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
 
 h_percentiles <- h_full %>%
   mutate(across(all_of(stats_columns), ~rank(., ties.method = "min") / n() * 100),
          across(all_of(stats_columns), ~ round(.)))  %>%
-  pivot_longer(cols = starts_with(c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", 
-                                    "wOBA","Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")),
+  pivot_longer(cols = starts_with(c(stats_columns)),
                names_to = "Stat",
                values_to = "Percentile")  %>%
   full_join(h_full_pivot, by = c("NAME","TEAM","Stat"), relationship = "many-to-many") %>%
@@ -111,21 +108,18 @@ p_yak <- yak %>%
 
 p_full <- p_ %>% left_join(p_yak, by = c('NAME' = 'Pitcher')) 
 
-p_full_pivot <- p_full %>%
-  pivot_longer(cols = starts_with(c('ERA', 'FIP', 'vwOBA', 'BB%', 'K%', "Fastball Velo",  "Fastball Spin",
-                                    "vSLG" ,     "Avg. Exit Velo",   "Hard Hit%",      "Whiff %" ,"Chase %"       )),
-               names_to = "Stat",
-               values_to = "Value")
-
-
 p_stats_columns <- c("ERA", "FIP", "vwOBA", "BB%", "K%", "Fastball Velo","Fastball Spin",  "vSLG",
                      "Avg. Exit Velo",  "Hard Hit%", "Whiff %", "Chase %")
+
+p_full_pivot <- p_full %>%
+  pivot_longer(cols = starts_with(c(p_stats_columns )),
+               names_to = "Stat",
+               values_to = "Value")
 
 p_percentiles <- p_full %>%
   mutate(across(all_of(p_stats_columns), ~rank(., ties.method = "min") / n() * 100),
          across(all_of(p_stats_columns), ~ round(.)))  %>%
-  pivot_longer(cols = starts_with(c("ERA", "FIP", "vwOBA", "BB%", "K%", "Fastball Velo","Fastball Spin",  "vSLG",
-                                    "Avg. Exit Velo",  "Hard Hit%", "Whiff %", "Chase %")),
+  pivot_longer(cols = starts_with(c(p_stats_columns)),
                names_to = "Stat",
                values_to = "Percentile")  %>%
   full_join(p_full_pivot, by = c("NAME","TEAM","Stat"), relationship = "many-to-many") %>%
@@ -138,8 +132,6 @@ p_percentiles <- p_full %>%
   ) 
   ) %>%
   ungroup()
-
-
 
 pitcher <- p_percentiles %>% filter(NAME == "Kristian Scott") 
 
