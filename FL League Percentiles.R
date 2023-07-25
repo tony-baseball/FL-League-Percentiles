@@ -44,10 +44,6 @@ h_percentiles <- h_full %>%
                names_to = "Stat",
                values_to = "Percentile")  %>%
   full_join(h_full_pivot, by = c("NAME","TEAM","Stat"), relationship = "many-to-many") %>%
-  mutate(Stat = factor(Stat, levels = c("AVG", "OBP", "SLG", "wOBA",
-                                        "wRC+", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 
-                                        "BB%", "K%", 'Whiff %', "Chase %")),
-         Percentile = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 100 - Percentile, Percentile))%>%
   group_by(Stat) %>%
   mutate(Rank = ifelse(Stat %in% c("BB%", "ERA", 'FIP', 'vwOBA', 'vSLG',"Avg. Exit Velo",  "Hard Hit%"), 
                        dense_rank(Value), dense_rank(desc(Value))),
@@ -57,7 +53,11 @@ h_percentiles <- h_full %>%
                                     ''))) ) %>%
   mutate(Rank = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 
                        dense_rank(Value), dense_rank(desc(Value))) ) %>%
-  ungroup()
+  ungroup()%>%
+  mutate(Stat = factor(Stat, levels = c("AVG", "OBP", "SLG", "wOBA",
+                                        "wRC+", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 
+                                        "BB%", "K%", 'Whiff %', "Chase %")),
+         Percentile = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 100 - Percentile, Percentile))
 
 hitter <- h_percentiles %>% filter(NAME == "Blake Berry") 
 
@@ -253,3 +253,53 @@ ggplotly(
 # radarchart(radarr)
 # create_beautiful_radarchart(radarr)
 # colnames(h_full_ranks)
+
+fl_p_per <- FL_team_pitch23 %>%
+  filter(TEAM == 'League Average')%>%
+  rename(`BB%` = 'BB.',
+         `K%` = 'K.',
+         `FIP-` = 'FIP.') %>%
+  mutate(ERA = round(ER/IP*9,2)) %>% 
+  select(TEAM, ERA, `FIP`, vwOBA, vSLG,  `BB%`, `K%`) %>%
+  mutate(`BB%` = `BB%`*100,
+         `K%` = `K%`*100)
+
+fl_p_yak <- yak %>%
+  summarise(`Fastball Velo` = round(mean(RelSpeed[TaggedPitchType %in% c('Fastball', 'Sinker')], na.rm = TRUE),1),
+            `Fastball Spin` = round(mean(SpinRate[TaggedPitchType %in% c('Fastball', 'Sinker')], na.rm = TRUE),1),
+            `Hard Hit%` = round((sum(hardhit, na.rm = T) / sum(PitchCall=='InPlay'& !is.na(ExitSpeed), na.rm = T) )*100,1),
+            `Whiff %` = round((sum(whiff, na.rm = T) / sum(swing,na.rm = T))*100,1),
+            `Avg. Exit Velo` = round(mean(ExitSpeed[PitchCall=='InPlay'], na.rm = TRUE),1),
+            `Chase %` = round((sum(swing[in_zone==0], na.rm = T) / sum(in_zone==0,na.rm = T))*100,1)
+  ) %>% 
+  mutate(TEAM = 'League Average', .before = `Fastball Velo`)
+
+fl_p <- fl_p_per %>%
+  left_join(fl_p_yak, by = 'TEAM') %>% pivot_longer(cols = c(2:ncol(.))) %>%
+  rename(Stat = 2,
+         `FL Avg` = 3)
+fl_per_avg <- left_join(pitcher, fl_p %>% select(Stat, `FL Avg`), by = 'Stat')            
+# ----
+
+fl_h_per <- FL_team_hit23 %>%
+  filter(TEAM == '-')%>%
+  rename(`BB%` = 'BB.',
+         `K%` = 'K.',
+         `wRC+` = 'wRC.') %>%
+  mutate(TEAM = 'League Average')%>% 
+  select(TEAM, AVG, OBP, SLG, `BB%`, `K%`, `wRC+`, wOBA) 
+
+fl_h_yak <- yak %>%
+  summarise(`Avg. Exit Velo` = round(mean(ExitSpeed[PitchCall=='InPlay'], na.rm = TRUE),1),
+            `Max Exit Velo` = round(max(ExitSpeed, na.rm = TRUE),1),
+            `Hard Hit%` = round((sum(hardhit, na.rm = T) / sum(PitchCall=='InPlay'& !is.na(ExitSpeed), na.rm = T) )*100,2),
+            `Whiff %` = round((sum(whiff, na.rm = T) / sum(swing,na.rm = T))*100,1),
+            `Chase %` = round((sum(swing[in_zone==0], na.rm = T) / sum(in_zone==0,na.rm = T))*100,1)
+  ) %>% 
+  mutate(TEAM = 'League Average', .before = `Avg. Exit Velo`)
+
+fl_h <- fl_h_per %>%
+  left_join(fl_h_yak, by = 'TEAM') %>% pivot_longer(cols = c(2:ncol(.))) %>%
+  rename(Stat = 2,
+         `FL Avg` = 3)
+fl_h_per_avg <- left_join(hitter, fl_h %>% select(Stat, `FL Avg`), by = 'Stat')            
