@@ -11,16 +11,23 @@ h <- read.csv("C:/Users/tdmed/OneDrive/_Shiny/_Coop2/frontier_all_hitters23.csv"
          !grepl('Tie-breaker',NAME))%>%
   rename(`BB%` = 'BB.',
          `K%` = 'K.',
-         `wRC+` = 'wRC.') %>% 
-  select(NAME, TEAM, AVG, OBP, SLG, `BB%`, `K%`, `wRC+`, wOBA) 
+         `wRC+` = 'wRC.') 
+
+lg_obp <- sum((h$H+ h$BB + h$HBP), na.rm = T) / sum(h$PA, na.rm = T)
+lg_slg <- sum((h$HR*4) + (h$X3B*3) + (h$X2B*2) + (h$X1B*1), na.rm = T) / sum(h$AB, na.rm = T)
+lg_ops <- lg_obp + lg_slg
+
+h <- h %>% 
+  select(NAME, TEAM, AVG, OBP, SLG, OPS, `BB%`, `K%`, `wRC+`, wOBA) %>%
+  mutate(`OPS+` = round((`OPS`/lg_ops)*100), .after=OPS)
 
 # ---- Yakkertech DATA ----
 # create rate stats
 h_yak <- yak %>%
   group_by(Batter) %>%
-  summarise(`Avg. Exit Velo` = round(mean(ExitSpeed[PitchCall=='InPlay'], na.rm = TRUE),1),
+  summarise(`Avg. Exit Velo` = round(mean(ExitSpeed[PitchCall=='InPlay' & HitType != 'Bunt'], na.rm = TRUE),1),
             `Max Exit Velo` = round(max(ExitSpeed, na.rm = TRUE),1),
-            `Hard Hit%` = round((sum(hardhit, na.rm = T) / sum(PitchCall=='InPlay'& !is.na(ExitSpeed), na.rm = T) )*100,2),
+            `Hard Hit%` = round((sum(hardhit, na.rm = T) / sum(PitchCall=='InPlay' & HitType != 'Bunt'& !is.na(ExitSpeed), na.rm = T) )*100,2),
             `Whiff %` = round((sum(whiff, na.rm = T) / sum(swing,na.rm = T))*100,1),
             `Chase %` = round((sum(swing[in_zone==0], na.rm = T) / sum(in_zone==0,na.rm = T))*100,1)
             
@@ -28,7 +35,7 @@ h_yak <- yak %>%
 # join normal stats and yakkertech stats
 h_full <- h %>% left_join(h_yak, by = c('NAME' = 'Batter'))
 
-stats_columns <- c("AVG", "OBP", "SLG", "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
+stats_columns <- c("AVG", "OBP", "SLG", 'OPS', 'OPS+', "BB%", "K%", "wRC+", "wOBA", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 'Whiff %', "Chase %")
 
 # pivot 
 h_full_pivot <- h_full %>%
@@ -43,6 +50,7 @@ h_percentiles <- h_full %>%
   pivot_longer(cols = starts_with(c(stats_columns)),
                names_to = "Stat",
                values_to = "Percentile")  %>%
+  
   full_join(h_full_pivot, by = c("NAME","TEAM","Stat"), relationship = "many-to-many") %>%
   group_by(Stat) %>%
   mutate(Rank = ifelse(Stat %in% c("BB%", "ERA", 'FIP', 'vwOBA', 'vSLG',"Avg. Exit Velo",  "Hard Hit%"), 
@@ -53,13 +61,40 @@ h_percentiles <- h_full %>%
                                     ''))) ) %>%
   mutate(Rank = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 
                        dense_rank(Value), dense_rank(desc(Value))) ) %>%
-  ungroup()%>%
-  mutate(Stat = factor(Stat, levels = c("AVG", "OBP", "SLG", "wOBA",
+  ungroup() %>%
+  mutate(Stat = factor(Stat, levels = c("AVG", "OBP", "SLG", 'OPS','OPS+', "wOBA",
                                         "wRC+", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 
                                         "BB%", "K%", 'Whiff %', "Chase %")),
          Percentile = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 100 - Percentile, Percentile))
 
-hitter <- h_percentiles %>% filter(NAME == "Blake Berry") 
+# new %ile
+
+df_percentiles <- h_full %>%
+  filter(!is.na(AVG)) %>%
+  mutate(across(where(is.numeric), ~rank(.)/length(.)*100),
+         across(all_of(stats_columns), ~ round(.))) %>%
+  pivot_longer(cols = starts_with(c(stats_columns)),
+               names_to = "Stat",
+               values_to = "Percentile") %>%
+  
+  full_join(h_full_pivot, by = c("NAME","TEAM","Stat"), relationship = "many-to-many") %>%
+  group_by(Stat) %>%
+  mutate(Rank = ifelse(Stat %in% c("BB%", "ERA", 'FIP', 'vwOBA', 'vSLG',"Avg. Exit Velo",  "Hard Hit%"), 
+                       dense_rank(Value), dense_rank(desc(Value))),
+         UOM = ifelse(Stat %in% c("BB%", "K%", "Whiff %", "Hard Hit%", 'Chase%'), "%",
+                      ifelse(Stat %in% c('Max Exit Velo', 'Avg. Exit Velo'), ' mph',
+                             ifelse(Stat %in% c('Fastball Spin'), " rpm",
+                                    ''))) ) %>%
+  mutate(Rank = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 
+                       dense_rank(Value), dense_rank(desc(Value))) ) %>%
+  ungroup() %>%
+  mutate(Stat = factor(Stat, levels = c("AVG", "OBP", "SLG", 'OPS', 'OPS+', "wOBA",
+                                        "wRC+", "Avg. Exit Velo", "Max Exit Velo", 'Hard Hit%', 
+                                        "BB%", "K%", 'Whiff %', "Chase %")),
+         Percentile = ifelse(Stat %in% c("K%", "Whiff %", "Chase %"), 100 - Percentile, Percentile))
+
+
+hitter <- df_percentiles %>% filter(NAME == "Chase Dawson") 
 
 ggplotly(
   ggplot(hitter, aes(text = paste0(Stat,": ", Value,
@@ -104,6 +139,79 @@ ggplotly(
               yanchor="center" 
             )  
           ) ) 
+
+
+
+
+# NEW Savant
+ggplotly(
+  # ggplot(hitter, aes(text = paste0(Stat,": ", Value,
+  #                                  "\n","Rank: ", Rank,"/",max(h_percentiles$Rank, na.rm = T)))) +
+  #   
+  ggplot(hitter, aes(x = Percentile, y = Stat, fill = Percentile , color = Percentile )) +
+    geom_bar(stat = "identity",   width = 0.5) +
+    geom_segment(aes(x = Percentile, xend = 100, y = Stat, yend = Stat), color = "grey", linewidth = 1) +
+    geom_segment(aes(x = 50, xend = 50, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
+    geom_segment(aes(x = 5, xend = 5, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
+    geom_segment(aes(x = 95, xend = 95, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
+    geom_point(aes(Percentile, Stat), color= 'white', fill = 'white', size = 7, alpha = 1, shape = 21, stroke = 0.5) +
+    geom_point(aes(Percentile, Stat),  size = 6, alpha = 1, shape = 21, stroke = 0.5) +
+    scale_fill_gradient2(midpoint = 50, low = "blue", mid = "lightgrey", high = "red") +
+    scale_colour_gradient2(midpoint = 50, low = "blue", mid = "lightgrey", high = "red") +
+    scale_y_discrete(limits = \(Stat) rev(Stat)) +
+    xlim(0, 110) +
+    ggtitle("Frontier League Hitter Percentile Rankings") +
+    geom_text(aes(x = Percentile, y = Stat, label = Percentile), size = 4, fontface = 'bold',  
+              color = ifelse(hitter$Percentile > 25 & hitter$Percentile < 75, "black", "white")) +
+    geom_text(aes(x = 110, y = Stat, label = paste0(Value)), size = 3, fontface = 'bold',  hjust = -1,
+              color = 'black', ) +
+    # geom_text(aes(x = 5, y = Stat[1], label = 'POOR'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
+    #           color = 'blue', ) +
+    # geom_text(aes(x = 50, y = Stat[1], label = 'AVERAGE'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
+    #           color = 'grey', ) +
+    # geom_text(aes(x = 95, y = Stat[1], label = 'GREAT'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
+    #           color = 'red', ) +
+    theme(
+      plot.background = element_rect(fill = '#Fafaf3', color = '#Fafaf3' ),
+      panel.background = element_rect(fill = '#Fafaf3', color = '#Fafaf3' ),
+      panel.grid = element_blank(),
+      axis.title = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(hjust = 1, face='bold'),
+     # panel.background = element_blank(),
+     legend.position = "none"
+    )
+) %>%
+  layout(title = 'Frontier League Hitter Percentile Rankings\n', plot_bgcolor = "#Fafaf3") %>% 
+  layout(paper_bgcolor='#Fafaf3') %>%  
+  layout( xaxis = list(title = ""), yaxis = list(title = ""),
+          images = list(  
+            list(  
+              source =  "https://i.imgur.com/tQZCji9.png",  
+              xref = "paper",  
+              yref = "paper",  
+              x = 0.48,  
+              y = 0.05,  
+              sizex = 0.25,  
+              sizey = 0.25,  
+              xanchor="center",  
+              yanchor="center" 
+            ),
+            list(  
+              source =  "http://silhouettesfree.com/sports/baseball/batter-silhouette-image-9.png",  
+              xref = "paper",  
+              yref = "paper",  
+              x = -0.05,  
+              y = 1.1,  
+              sizex = 0.1,  
+              sizey = 0.1,  
+              xanchor="center",  
+              yanchor="center" 
+            )  
+          ) ) %>% 
+  style(hoverinfo = 'none') %>%
+  layout(xaxis = list(fixedrange = TRUE), yaxis = list(fixedrange = TRUE))  
 
 
 # ---------------- FRONTIER PITCHERS  ------------
