@@ -98,7 +98,7 @@ hitter <- df_percentiles %>% filter(NAME == "Chase Dawson")
 
 ggplotly(
   ggplot(hitter, aes(text = paste0(Stat,": ", Value,
-                                   "\n","Rank: ", Rank,"/",max(h_percentiles$Rank, na.rm = T)))) +
+                                   "\n","Rank: ", Rank,"/",max(df_percentiles$Rank, na.rm = T)))) +
     geom_segment(aes(x = 0, xend = 100, y = Stat, yend = Stat), color = "grey", linewidth = 1.5) +
     geom_point(aes(x = 0, y = Stat), size = 2.5, alpha = 1, stroke = 0.5, color = 'grey') +
     geom_point(aes(x = 50, y = Stat), size = 2.5, alpha = 1, stroke = 0.5, color = 'grey') +
@@ -138,40 +138,31 @@ ggplotly(
               xanchor="center",  
               yanchor="center" 
             )  
-          ) ) 
+          ) )
 
 
 
 
 # NEW Savant
 ggplotly(
-  # ggplot(hitter, aes(text = paste0(Stat,": ", Value,
-  #                                  "\n","Rank: ", Rank,"/",max(h_percentiles$Rank, na.rm = T)))) +
-  #   
-  ggplot(hitter, aes(x = Percentile, y = Stat, fill = Percentile , color = Percentile )) +
+    ggplot(hitter, aes(x = Percentile, y = Stat, fill = Percentile , color = Percentile )) +
     geom_bar(stat = "identity",   width = 0.5) +
     geom_segment(aes(x = Percentile, xend = 100, y = Stat, yend = Stat), color = "grey", linewidth = 1) +
     geom_segment(aes(x = 50, xend = 50, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
     geom_segment(aes(x = 5, xend = 5, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
     geom_segment(aes(x = 95, xend = 95, y = 0, yend = 12.5), color = "white", alpha = 0.05, linewidth = 1) +
-    geom_point(aes(Percentile, Stat), color= 'white', fill = 'white', size = 7, alpha = 1, shape = 21, stroke = 0.5) +
-    geom_point(aes(Percentile, Stat),  size = 6, alpha = 1, shape = 21, stroke = 0.5) +
+    geom_point(aes(Percentile, Stat), color= 'white', fill = 'white', size = 6, alpha = 1, shape = 21, stroke = 0.5) +
+    geom_point(aes(Percentile, Stat),  size = 5, alpha = 1, shape = 21, stroke = 0.5) +
     scale_fill_gradient2(midpoint = 50, low = "blue", mid = "lightgrey", high = "red") +
     scale_colour_gradient2(midpoint = 50, low = "blue", mid = "lightgrey", high = "red") +
     scale_y_discrete(limits = \(Stat) rev(Stat)) +
     xlim(0, 110) +
     ggtitle("Frontier League Hitter Percentile Rankings") +
-    geom_text(aes(x = Percentile, y = Stat, label = Percentile), size = 4, fontface = 'bold',  
+    geom_text(aes(x = Percentile, y = Stat, label = Percentile), size = 3.5, fontface = 'bold',  
               color = ifelse(hitter$Percentile > 25 & hitter$Percentile < 75, "black", "white")) +
     geom_text(aes(x = 110, y = Stat, label = paste0(Value)), size = 3, fontface = 'bold',  hjust = -1,
               color = 'black', ) +
-    # geom_text(aes(x = 5, y = Stat[1], label = 'POOR'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
-    #           color = 'blue', ) +
-    # geom_text(aes(x = 50, y = Stat[1], label = 'AVERAGE'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
-    #           color = 'grey', ) +
-    # geom_text(aes(x = 95, y = Stat[1], label = 'GREAT'), size = 3, fontface = 'bold',  hjust = .5, vjust = -1,
-    #           color = 'red', ) +
-    theme(
+     theme(
       plot.background = element_rect(fill = '#Fafaf3', color = '#Fafaf3' ),
       panel.background = element_rect(fill = '#Fafaf3', color = '#Fafaf3' ),
       panel.grid = element_blank(),
@@ -179,7 +170,6 @@ ggplotly(
       axis.ticks = element_blank(),
       axis.text.x = element_blank(),
       axis.text.y = element_text(hjust = 1, face='bold'),
-     # panel.background = element_blank(),
      legend.position = "none"
     )
 ) %>%
